@@ -3,11 +3,19 @@ import torch
 import torch.optim as optim
 
 class LinearAligner():
+    """
+    Class to handle the linear aligner to the CLIP space
+    """
     def __init__(self) -> None:        
         self.W = None
         self.b = None
            
     def train(self, ftrs1, ftrs2, epochs=6, target_variance=4.5, verbose=0) -> dict:
+        """
+        Fits the linear layer to align the representations of ftrs1 to ftrs2.
+        The training is done using a simple linear regression with MSE loss.
+        Variance is normalized to a target value.
+        """
         lr_solver = LinearRegressionSolver()
         
         print(f'Training linear aligner ...')
@@ -38,13 +46,15 @@ class LinearAligner():
         return ftrs @ self.W.T + self.b
     
     def load_W(self, path_to_load: str):
+        """Loads both W and b."""
         aligner_dict = torch.load(path_to_load)
         self.W, self.b = [aligner_dict[x].float() for x in ['W', 'b']]
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
         self.W = self.W.to(device).float()
         self.b = self.b.to(device).float()
         
     def save_W(self, path_to_save: str):
+        """Saves btoh W and b."""
         torch.save({'b': self.b.detach().cpu(), 'W': self.W.detach().cpu()}, path_to_save)
         
         
@@ -64,7 +74,7 @@ class LinearRegressionSolver():
         self.criterion = torch.nn.MSELoss()
     
     def train(self, X: np.ndarray, y: np.ndarray, bias=True, batch_size=100, epochs=20):
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
 
         tensor_X = torch.from_numpy(X).float()
         tensor_y = torch.from_numpy(y).float()
@@ -126,7 +136,7 @@ class LinearRegressionSolver():
 
     
     def test(self, X: np.ndarray, y: np.ndarray, batch_size=100):
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
 
         tensor_X = torch.from_numpy(X).float()
         tensor_y = torch.from_numpy(y).float()

@@ -11,6 +11,9 @@ templates = ['itap of a {}', 'a bad photo of the {}', 'a origami {}', 'a photo o
 
 
 def encode_concepts_by_class(concepts, model_name='ViT-B/16', batch_size=64):
+    """
+    Returns text embeddings for a list of concepts, where each concept is represented by the average of the text embeddings of the concept with different templates.
+    """
     templated_concepts = [template+ ' ' + concept for (concept, template) in product(concepts, templates)]
     num_concepts, num_templates = [len(x) for x in [concepts, templates]]
 
@@ -18,12 +21,13 @@ def encode_concepts_by_class(concepts, model_name='ViT-B/16', batch_size=64):
     cls_list = imagenet_classes
     
     model, preprocess = clip.load(model_name)
-    
+    device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
     for c in tqdm(cls_list):
         tokens = clip.tokenize([t.format(c) for t in templated_concepts])
         vecs = []
         for i in range(0, len(templated_concepts), batch_size):
-            vecs.append(model.encode_text(tokens[i: i+batch_size].cuda()).detach().cpu())
+            vecs.append(model.encode_text(tokens[i: i+batch_size].to(device)).detach().cpu())
         vecs = torch.vstack(vecs)
         avg_vecs = torch.stack([vecs[num_templates*i:num_templates*(i+1),:].mean(0) for i in range(num_concepts)])
         all_vecs.append(avg_vecs)

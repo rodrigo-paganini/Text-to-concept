@@ -17,6 +17,11 @@ CLIP_IMAGENET_TRANSFORMATION = transforms.Compose([transforms.Resize(224), trans
 
 class ClipZeroShot(torch.nn.Module):
     def __init__(self, mtype):
+        """Loads the CLIP model for zero-shot classification.
+
+        Args:
+            mtype (str): model type
+        """
         super(ClipZeroShot, self).__init__()
         self.clip_model, self.clip_preprocess = clip.load(mtype)
         self.to_pil = transforms.ToPILImage()
@@ -32,7 +37,16 @@ class ClipZeroShot(torch.nn.Module):
 
 
 class ZeroShotClassifier:
+    """
+    Zero-shot classifier using concept weights and trained aligner.
+    """
     def __init__(self, model, aligner: LinearAligner, zeroshot_weights: torch.Tensor):
+        """
+        Args:
+            model (nn.Module): The (vision) model for forward feature extraction.
+            aligner (LinearAligner): The linear aligner for representation alignment.
+            zeroshot_weights (torch.Tensor): The zero-shot weights for classification.
+        """
         self.model = model
         self.aligner = aligner
         self.zeroshot_weights = zeroshot_weights.float()
@@ -49,10 +63,18 @@ class ZeroShotClassifier:
 class TextToConcept:
     # model.forward_features(), model.get_normalizer() should be implemented.
     def __init__(self, model, model_name) -> None:
-        
+        """
+        Args:
+            model: Vision model with methods/attributes:
+                - forward_features(x): returns feature representations for input x.
+                - get_normalizer(x): returns normalized input x (if model has normalizer).
+                - has_normalizer: boolean indicating if the model has a normalizer.
+
+            model_name (str): Name of the model (for saving reps).
+        """
         self.model = model
         self.model_name = model_name
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.clip_model = ClipZeroShot('ViT-B/16')
         
         self.model.eval().to(self.device)
@@ -61,6 +83,7 @@ class TextToConcept:
     
         
     def save_reps(self, path_to_model, path_to_clip_model):
+        """Save the representations to disk."""
         print(f'Saving representations')
         np.save(path_to_model, self.reps_model)
         np.save(path_to_clip_model, self.reps_clip)    
@@ -82,6 +105,7 @@ class TextToConcept:
       
         
     def train_linear_aligner(self, D, save_reps=False, load_reps=False, path_to_model=None, path_to_clip_model=None, epochs=5):
+        """Train the linear aligner."""
         if load_reps:
             self.load_reps(path_to_model, path_to_clip_model)
         else:
@@ -97,6 +121,7 @@ class TextToConcept:
         
         
     def get_zeroshot_weights(self, classes, prompts):
+        """Gets prompt features through clip."""
         zeroshot_weights = []
         for c in classes:
             tokens = clip.tokenize([prompt.format(c) for prompt in prompts])
@@ -109,10 +134,15 @@ class TextToConcept:
     
     
     def get_zero_shot_classifier(self, classes, prompts=['a photo of {}.']):
+        """Instances Zero-Shot Classifier with the set of given prompts."""
         return ZeroShotClassifier(self.model, self.linear_aligner, self.get_zeroshot_weights(classes, prompts))
     
     
     def search(self, dset, dset_name, prompts=['a photo of a dog']):    
+        """
+        Searches in a dataset for elements that are similar to a prompt.
+        If provided with multiple prompts, feature representations are averaged.
+        """
         tokens = clip.tokenize(prompts)
         vecs = self.clip_model.encode_text(tokens.to(self.device))
         vec = vecs.detach().mean(0).float().unsqueeze(0)
@@ -122,11 +152,20 @@ class TextToConcept:
     
     
     def search_with_encoded_concepts(self, dset, dset_name, vec):
+        """
+        Searches in a dataset for elements that are similar to a text embedding (vec).
+        """
         sims = self.get_similarity(dset, dset_name, self.model.has_normalizer, vec.to(self.device))[:, 0]
         return np.argsort(-1 * sims), sims
 
 
     def get_similarity(self, dset, dset_name, do_normalization, vecs: torch.Tensor):
+        """
+        Gets the similarity each dataset element has with a mean text representations (vecs).
+        Outputs a numpy array of shape: [N_batches, batch_size, 1]  TODO verify
+
+        TODO list append efficiency could be improved.
+        """
         reps, labels = self.get_dataset_reps(dset, dset_name, do_normalization)
         N = reps.shape[0]
         batch_size = 100
@@ -136,7 +175,7 @@ class TextToConcept:
             for i in range(0, N, batch_size): 
                 aligned_reps = self.linear_aligner.get_aligned_representation(torch.from_numpy(reps[i: i+batch_size]).to(self.device))
                 aligned_reps /= aligned_reps.norm(dim=-1, keepdim=True)
-                sims = aligned_reps @ vecs.T
+                sims = aligned_reps @ vecs.T  # 
                 sims = sims.detach().cpu().numpy()
                 all_sims.append(sims)
             
@@ -144,6 +183,7 @@ class TextToConcept:
 
 
     def get_dataset_reps(self, dset, dset_name, do_normalization):
+        """Gets a dataset (vision) model representations from saved run or reruns them."""
         if dset_name in self.saved_dsets:
             path_to_reps, path_to_labels = self.saved_dsets[dset_name]
             return np.load(path_to_reps), np.load(path_to_labels)
@@ -184,6 +224,7 @@ class TextToConcept:
 
     
     def encode_text(self, list_of_prompts):
+        """Returns text embeddings for a list of prompts."""
         all_vecs = []
         batch_size = 64
         with torch.no_grad():
@@ -206,6 +247,7 @@ class TextToConcept:
         
 
     def detect_drift(self, dset1, dset_name1, dset2, dset_name2, prompts):
+        """Detect drift between two datasets by shift in similarity distributions (t-test)."""
         vecs = self.encode_text([prompts])
         sims1 = self.get_similarity(dset1, dset_name1, self.model.has_normalizer, vecs)
         sims2 = self.get_similarity(dset2, dset_name2, self.model.has_normalizer, vecs)
@@ -216,6 +258,18 @@ class TextToConcept:
         
         
     def concept_logic(self, dset, dset_name, list_of_prompts, signs, scales):
+        """
+        Retrieves dataset elements that satisfy a logical combination of concepts (prompts).
+
+        Rule: threshold = sim_mean + sign * scale * sim_std
+
+        Args:
+            dset: dataset to search in.
+            dset_name: name of the dataset (for loading/saving reps).
+            list_of_prompts: list of prompts, each representing a concept.
+            signs: list of signs (1 or -1) indicating whether to keep elements above or below the threshold for each concept.
+            scales: list of scales to apply to the standard deviation when calculating thresholds for each concept.
+        """
         vecs = self.encode_text(list_of_prompts)
         sims = self.get_similarity(dset, dset_name, self.model.has_normalizer, vecs)
         means = np.mean(sims, axis=0)
@@ -237,11 +291,17 @@ class TextToConcept:
         
         
     def obtain_ftrs(self, model, dset):
+        """Instance a dataloader and obtain feature representations for the given model."""
         loader = torch.utils.data.DataLoader(dset, batch_size=16, shuffle=False, num_workers=8, pin_memory=True) 
         return self.obtain_reps_given_loader(model, loader)
     
     
     def obtain_reps_given_loader(self, model, loader):
+        """
+        Run model forward_features on the given dataloader and obtain feature representations.
+        
+        TODO: we can try to torch this us, use .pth instead of .npy
+        """
         all_reps = []
         for imgs, _ in tqdm(loader):
             if model.has_normalizer:
