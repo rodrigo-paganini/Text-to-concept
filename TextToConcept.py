@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 import torch
 from torchvision import datasets, transforms, models
 import torchvision
@@ -8,6 +8,7 @@ from LinearAligner import LinearAligner
 import clip
 import scipy
 import os
+import ViCLIP
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
@@ -15,14 +16,14 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 IMAGENET_TRANSFORMATION = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),])
 CLIP_IMAGENET_TRANSFORMATION = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor()])
 
-class ClipZeroShot(torch.nn.Module):
+class ClipZeroShotForImages(torch.nn.Module):
     def __init__(self, mtype):
         """Loads the CLIP model for zero-shot classification.
 
         Args:
             mtype (str): model type
         """
-        super(ClipZeroShot, self).__init__()
+        super(ClipZeroShotForImages, self).__init__()
         self.clip_model, self.clip_preprocess = clip.load(mtype)
         self.to_pil = transforms.ToPILImage()
         self.mtype = mtype
@@ -34,6 +35,36 @@ class ClipZeroShot(torch.nn.Module):
     
     def encode_text(self, tokens):
         return self.clip_model.encode_text(tokens)
+
+    def tokenize(self, texts: List[str]):
+        return self.clip_model.tokenize(texts)
+
+
+class ClipZeroShotForVideos(torch.nn.Module):
+    def __init__(self, mtype):
+        """Loads the CLIP model for zero-shot classification.
+
+        Args:
+            mtype (str): model type
+        """
+        super(ClipZeroShotForVideos, self).__init__()
+        self.tokenizer = ViCLIP.SimpleTokenizer()
+        self.clip_model = ViCLIP.ViCLIP(self.tokenizer)
+
+        # self.clip_model, self.clip_preprocess = clip.load(mtype)
+        self.to_pil = transforms.ToPILImage()
+        self.mtype = mtype
+        self.has_normalizer = False
+
+    def forward_features(self, vid):
+        video_feats = self.clip_model.get_vid_features(vid)
+        return video_feats
+
+    def encode_text(self, tokens):
+        return self.clip_model.encode_text(tokens)
+
+    def tokenize(self, texts: List[str]):
+        return self.clip_model.tokenize(texts)
 
 
 class ZeroShotClassifier:
@@ -62,7 +93,7 @@ class ZeroShotClassifier:
         
 class TextToConcept:
     # model.forward_features(), model.get_normalizer() should be implemented.
-    def __init__(self, model, model_name) -> None:
+    def __init__(self, model, model_name, input_type = "images") -> None:
         """
         Args:
             model: Vision model with methods/attributes:
@@ -71,12 +102,20 @@ class TextToConcept:
                 - has_normalizer: boolean indicating if the model has a normalizer.
 
             model_name (str): Name of the model (for saving reps).
+
+            input_type (Literal['images', 'video']): type of input data.
         """
         self.model = model
         self.model_name = model_name
         self.device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.clip_model = ClipZeroShot('ViT-B/16')
-        
+        self.input_type = input_type
+        if self.input_type.lower() == "image":
+            self.clip_model = ClipZeroShotForImages('ViT-B/16')
+        elif self.input_type.lower() == "video":
+            self.clip_model = ClipZeroShotForVideos('ViT-B/16')
+        else:
+            raise ValueError(f"Input types must be one of: ['image', 'video']. Got: {input_type}")
+
         self.model.eval().to(self.device)
         self.clip_model.eval().to(self.device)
         self.saved_dsets = {}
@@ -124,7 +163,7 @@ class TextToConcept:
         """Gets prompt features through clip."""
         zeroshot_weights = []
         for c in classes:
-            tokens = clip.tokenize([prompt.format(c) for prompt in prompts])
+            tokens = self.clip_model.tokenize([prompt.format(c) for prompt in prompts])
             c_vecs = self.clip_model.encode_text(tokens.to(self.device))
             c_vec = c_vecs.mean(0)
             c_vec /= c_vec.norm(dim=-1, keepdim=True)
@@ -143,7 +182,7 @@ class TextToConcept:
         Searches in a dataset for elements that are similar to a prompt.
         If provided with multiple prompts, feature representations are averaged.
         """
-        tokens = clip.tokenize(prompts)
+        tokens = self.clip_model.tokenize(prompts)
         vecs = self.clip_model.encode_text(tokens.to(self.device))
         vec = vecs.detach().mean(0).float().unsqueeze(0)
         vec /= vec.norm(dim=-1, keepdim=True)
@@ -229,7 +268,7 @@ class TextToConcept:
         batch_size = 64
         with torch.no_grad():
             for prompts in list_of_prompts:
-                tokens = clip.tokenize(prompts)
+                tokens = self.clip_model.tokenize(prompts)
                 M = tokens.shape[0]
                 curr_vecs = []
                 
