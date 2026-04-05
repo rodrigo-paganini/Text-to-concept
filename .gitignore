@@ -60,6 +60,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# Mac stuff
+.DS_Store
+
 # Translations
 *.mo
 *.pot
@@ -139,3 +142,4 @@ dmypy.json
 
 # Data
 data/
+datasets/
