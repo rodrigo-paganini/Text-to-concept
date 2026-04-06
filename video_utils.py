@@ -1,10 +1,15 @@
 import os
+import torch
 import random
 from pathlib import Path
 
 from torchvision.datasets.folder import has_file_allowed_extension
 from torchvision import transforms, datasets
 from typing import Callable, Optional, Union, cast
+
+IMAGENET_MEAN = (0.485, 0.456, 0.406)  # TODO review
+IMAGENET_STD = (0.229, 0.224, 0.225)
+
 
 def make_dataset(
     directory: Union[str, Path],
@@ -65,3 +70,50 @@ def make_dataset(
         raise FileNotFoundError(msg)
 
     return instances
+
+
+class VideoMAETTCTWrapper(torch.nn.Module):
+    def __init__(self, model, normalizer=None, mtype="videomae"):
+        super().__init__()
+        self.mtype = mtype
+        self.model = model
+        self.normalizer = normalizer
+
+    def forward_features(self, x):
+        sequence_videomae_feats = self.model.videomae(
+            pixel_values=x
+        ).last_hidden_state
+
+        if self.model.fc_norm is not None:
+            videomae_feats = sequence_videomae_feats.mean(1)
+            videomae_feats = self.model.fc_norm(videomae_feats)
+        else:
+            videomae_feats = sequence_videomae_feats[:, 0]
+
+        return videomae_feats
+
+    def get_normalizer(self, x):
+        if self.normalizer is None:
+            return x
+        return self.normalizer(x)
+
+    @property
+    def has_normalizer(self):
+        return self.normalizer is not None
+
+class ToTensorTuple:
+    def __init__(self, key_list):
+        self.key_list = key_list
+
+    def __call__(self, x, *args, **kwds):
+        return tuple(x[key] for key in self.key_list)  # TODO see batching
+
+
+class DivideBy255:
+    def __call__(self, x):
+        return x / 255.0
+
+
+class CTHWToTCHW:
+    def __call__(self, x):
+        return x.permute(1, 0, 2, 3)

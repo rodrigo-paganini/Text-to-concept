@@ -57,6 +57,10 @@ class ClipZeroShotForVideos(torch.nn.Module):
         self.has_normalizer = False
 
     def forward_features(self, vid):
+        if vid.shape[1] != 8:
+            idx = torch.linspace(0, vid.shape[1] - 1, 8, device=vid.device).long()
+            vid = vid.index_select(1, idx)
+
         video_feats = self.clip_model.get_vid_features(vid)
         return video_feats
 
@@ -143,14 +147,19 @@ class TextToConcept:
         self.linear_aligner.save_W(path_to_save)
       
         
-    def train_linear_aligner(self, D, save_reps=False, load_reps=False, path_to_model=None, path_to_clip_model=None, epochs=5):
-        """Train the linear aligner."""
+    def train_linear_aligner(self, D, batch_size=16, save_reps=False, load_reps=False, path_to_model=None, path_to_clip_model=None, epochs=5,
+        save_dir=None, save_every=20):
+        """
+        Train the linear aligner.
+
+        TODO make it so that we use only 1 decoding at a time
+        """
         if load_reps:
             self.load_reps(path_to_model, path_to_clip_model)
         else:
             print(f'Obtaining representations ...')
-            self.reps_model = self.obtain_ftrs(self.model, D)
-            self.reps_clip = self.obtain_ftrs(self.clip_model, D)
+            self.reps_model = self.obtain_ftrs(self.model, D, batch_size, str(save_dir) + 'vision_model_reps.pth', save_every)
+            self.reps_clip = self.obtain_ftrs(self.clip_model, D, batch_size, str(save_dir) + 'clip_model_reps.pth', save_every)
 
         if save_reps:
             self.save_reps(path_to_model, path_to_clip_model)
@@ -329,31 +338,38 @@ class TextToConcept:
         return retrieved, sims
         
         
-    def obtain_ftrs(self, model, dset):
+    def obtain_ftrs(self, model, dset, batch_size=16, save_path=None, save_every=20):
         """Instance a dataloader and obtain feature representations for the given model."""
-        loader = torch.utils.data.DataLoader(dset, batch_size=16, shuffle=False, num_workers=8, pin_memory=True) 
-        return self.obtain_reps_given_loader(model, loader)
+        loader = torch.utils.data.DataLoader(dset, batch_size, shuffle=False, num_workers=8, pin_memory=True) 
+        return self.obtain_reps_given_loader(model, loader, save_path, save_every)
     
     
-    def obtain_reps_given_loader(self, model, loader):
+    def obtain_reps_given_loader(self, model, loader, save_path=None, save_every=20):
         """
         Run model forward_features on the given dataloader and obtain feature representations.
-        
-        TODO: we can try to torch this us, use .pth instead of .npy
         """
         all_reps = []
-        for imgs, _ in tqdm(loader):
-            if model.has_normalizer:
-                imgs = model.get_normalizer(imgs)
-            
-            imgs = imgs.to(self.device)
-                
-            reps = model.forward_features(imgs).flatten(1)
-            reps = [x.detach().cpu().numpy() for x in reps]
-            
-            all_reps.extend(reps)
-            
-        all_reps = np.stack(all_reps)
-        return all_reps
 
+        with torch.inference_mode():
+            for i, (imgs, _) in enumerate(tqdm(loader)):
+                if model.has_normalizer:
+                    imgs = model.get_normalizer(imgs)
+
+                imgs = imgs.to(self.device)
+                reps = model.forward_features(imgs).flatten(1).cpu()
+
+                all_reps.append(reps)
+
+                if save_path is not None and (i + 1) % save_every == 0:
+                    torch.save(torch.cat(all_reps, dim=0), save_path)
+
+                del imgs, reps
+
+        all_reps = torch.cat(all_reps, dim=0)
+
+        if save_path is not None:
+            torch.save(all_reps, save_path)
+            print(f'Saved representations to {save_path}')
+
+        return all_reps.numpy()
 
