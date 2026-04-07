@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import numpy as np
 from tqdm import tqdm
-from transformers import VideoMAEVideoProcessor, VideoMAEForVideoClassification
+from transformers import VideoMAEVideoProcessor, VideoMAEForVideoClassification, VideoMAEModel
 from TextToConcept import TextToConcept
 from video_utils import make_dataset, VideoMAETTCTWrapper, CTHWToTCHW, DivideBy255, ToTensorTuple
 from pytorchvideo.transforms import UniformTemporalSubsample, ApplyTransformToKey
@@ -33,7 +33,7 @@ def main():
 
     device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     # feature_extractor = VideoMAEVideoProcessor.from_pretrained("MCG-NJU/videomae-small-finetuned-ssv2")  # TODO unnecessary??
-    videomae_model = VideoMAEForVideoClassification.from_pretrained("MCG-NJU/videomae-small-finetuned-ssv2")
+    videomae_model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base")
     videomae_model = videomae_model.to(device)
 
     model = VideoMAETTCTWrapper(videomae_model, normalizer=torchvision.transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD))
@@ -90,8 +90,8 @@ def main():
         transform=preprocessing_without_normalization,
     )
     print(len(dset))
-    text_to_concept.train_linear_aligner(dset, batch_size=16, load_reps=False, save_dir='data/representations_20k')
-    text_to_concept.save_linear_aligner('videomae_ssv2_aligner_20k.pth')
+    text_to_concept.train_linear_aligner(dset, batch_size=16, load_reps=False, save_dir='data/videomae_base/representations_20k')
+    text_to_concept.save_linear_aligner('videomae_base_aligner_20k.pth')
 
 
 if __name__ == '__main__':

@@ -75,18 +75,17 @@ def make_dataset(
 class VideoMAETTCTWrapper(torch.nn.Module):
     def __init__(self, model, normalizer=None, mtype="videomae"):
         super().__init__()
-        self.mtype = mtype
         self.model = model
         self.normalizer = normalizer
 
     def forward_features(self, x):
-        sequence_videomae_feats = self.model.videomae(
+        sequence_videomae_feats = self.model(
             pixel_values=x
         ).last_hidden_state
 
-        if self.model.fc_norm is not None:
+        if self.model.layernorm is not None:
             videomae_feats = sequence_videomae_feats.mean(1)
-            videomae_feats = self.model.fc_norm(videomae_feats)
+            videomae_feats = self.model.layernorm(videomae_feats)
         else:
             videomae_feats = sequence_videomae_feats[:, 0]
 
