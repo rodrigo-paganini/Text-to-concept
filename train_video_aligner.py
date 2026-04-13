@@ -6,10 +6,10 @@ import numpy as np
 from tqdm import tqdm
 from transformers import VideoMAEVideoProcessor, VideoMAEForVideoClassification, VideoMAEModel
 from TextToConcept import TextToConcept
-from video_utils import make_dataset, VideoMAETTCTWrapper, CTHWToTCHW, DivideBy255, ToTensorTuple
+from video_utils import load_ssv2_split, VideoMAETTCTWrapper, CTHWToTCHW, DivideBy255, ToTensorTuple, SizedLabeledVideoDataset
 from pytorchvideo.transforms import UniformTemporalSubsample, ApplyTransformToKey
 from torchvision.transforms import Compose, Resize, CenterCrop
-from pytorchvideo.data import LabeledVideoDataset, UniformClipSampler
+from pytorchvideo.data import UniformClipSampler
 
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]  # TODO review values
@@ -20,10 +20,6 @@ SEED=42
 
 def get_device():
     return 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
-
-class SizedLabeledVideoDataset(LabeledVideoDataset):
-    def __len__(self):
-        return len(self._labeled_videos)
 
 def main():
     np.random.seed(SEED)
@@ -51,47 +47,31 @@ def main():
                 # Normalize(IMAGENET_MEAN, IMAGENET_STD),
             ]),
         ),
-        ToTensorTuple(['video', 'label']),
+        ToTensorTuple(['video', 'label', 'video_name']),
     ])
-
-    # # loading imagenet dataset to train aligner.
-    # dset = torchvision.datasets.ImageNet(
-    #     # root='/fs/cml-datasets/ImageNet/ILSVRC2012',
-    #     root='.cache/kagglehub/datasets/ambityga/imagenet100',
-    #     split='train',
-    #     transform=preprocessing_without_normalization,
-    # )
 
     SSV2_ROOT = Path("../dataset/ssv2")
     LABELS_DIR = SSV2_ROOT / "labels"  # contains train.json, validation.json, test.json, labels
 
-    with open(LABELS_DIR / "labels.json") as f:
-        class_to_idx = json.load(f)
-    labeled_video_paths = make_dataset(
+    labeled_video_paths = load_ssv2_split(
+        "train",
         SSV2_ROOT / "20bn-something-something-v2",
-        class_to_idx,
-        ".mp4"
+        LABELS_DIR,
     )
     clip_sampler = UniformClipSampler(clip_duration=3.0)
-
-    dset = LabeledVideoDataset(
-        video_sampler=torch.utils.data.SequentialSampler,
-        labeled_video_paths=labeled_video_paths,
-        clip_sampler=clip_sampler,
-        transform=preprocessing_without_normalization,
-    )
 
     indices = np.random.choice(len(labeled_video_paths), size=SUBSET_NUM_SAMPLES, replace=False)
     subset_paths = [labeled_video_paths[i] for i in indices]
 
     dset = SizedLabeledVideoDataset(
+        video_sampler=torch.utils.data.SequentialSampler,
         labeled_video_paths=subset_paths,
         clip_sampler=clip_sampler,
         transform=preprocessing_without_normalization,
     )
     print(len(dset))
-    text_to_concept.train_linear_aligner(dset, batch_size=16, load_reps=False, save_dir='data/videomae_base/representations_20k')
-    text_to_concept.save_linear_aligner('videomae_base_aligner_20k.pth')
+    text_to_concept.train_linear_aligner(dset, batch_size=16, load_reps=False, save_dir='data/videomae_base/representations_20k_videomae_base')
+    text_to_concept.save_linear_aligner('pretrained_aligners/videomae_base_aligner_20k.pth')
 
 
 if __name__ == '__main__':

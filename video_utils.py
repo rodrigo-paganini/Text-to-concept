@@ -2,13 +2,44 @@ import os
 import torch
 import random
 from pathlib import Path
+import json
 
 from torchvision.datasets.folder import has_file_allowed_extension
 from torchvision import transforms, datasets
 from typing import Callable, Optional, Union, cast
+from pytorchvideo.data import LabeledVideoDataset
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)  # TODO review
 IMAGENET_STD = (0.229, 0.224, 0.225)
+
+
+def load_ssv2_split(split: str, videos_dir: Path, labels_dir: Path):
+    split_file = {
+        "train": "train.json",
+        "val": "validation.json",
+        "validation": "validation.json",
+        "test": "test.json",
+    }[split]
+
+    with open(labels_dir / "labels.json") as f:
+        class_to_idx = json.load(f)
+
+    with open(labels_dir / split_file) as f:
+        split_rows = json.load(f)
+
+    labeled_video_paths = []
+    for row in split_rows:
+        video_path = videos_dir / f"{row['id']}.mp4"
+        if not video_path.exists():
+            continue
+
+        template = row["template"].replace("[", "").replace("]", "")
+        labeled_video_paths.append(
+            (str(video_path), {"label": int(class_to_idx[template])})
+        )
+
+    return labeled_video_paths
+
 
 
 def make_dataset(
@@ -116,3 +147,41 @@ class DivideBy255:
 class CTHWToTCHW:
     def __call__(self, x):
         return x.permute(1, 0, 2, 3)
+
+
+class SizedLabeledVideoDataset(LabeledVideoDataset):
+    def __len__(self):
+        return len(self._labeled_videos)
+
+    def __getitem__(self, idx):
+        video_path, info_dict = self._labeled_videos[idx]
+
+        video = self.video_path_handler.video_from_path(
+            video_path,
+            decode_audio=self._decode_audio,
+            decode_video=self._decode_video,
+            decoder=self._decoder,
+        )
+        try:
+            clip_duration = min(video.duration, self._clip_sampler._clip_duration)
+            clip = video.get_clip(0.0, clip_duration)
+
+            sample = {
+                "video": clip["video"],
+                "label": info_dict["label"],
+                "video_name": Path(video_path).name,
+                "video_path": video_path,
+                "video_index": idx,
+                "clip_index": 0,
+                "aug_index": 0,
+            }
+
+            if self._transform is not None:
+                sample = self._transform(sample)
+
+            return sample
+        finally:
+            video.close()
+
+    def get_video_name(self, idx):
+        return Path(self._labeled_videos[idx][0]).name
