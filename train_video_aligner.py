@@ -56,12 +56,18 @@ def main():
     # SSV2_ROOT = Path("../dataset/ssv2")
     # LABELS_DIR = SSV2_ROOT / "labels"  # contains train.json, validation.json, test.json, labels
     K400_ROOT = Path("../dataset/k400")
+    K400_CLASSES_PATH = Path("../dataset/k400/kinetics_classnames.json")
+
+    with open(K400_CLASSES_PATH, 'r') as f:
+        class_to_idx = json.load(f)
+    class_to_idx = {k.strip('"'): int(v) for k, v in class_to_idx.items()}
 
     labeled_video_paths = load_k400_split(
         "train",
         K400_ROOT / "train/1",
+        class_to_idx=class_to_idx
     )
-    clip_sampler = UniformClipSampler(clip_duration=3.0)
+    clip_sampler = UniformClipSampler(clip_duration=10.0)
 
     # indices = np.random.choice(len(labeled_video_paths), size=SUBSET_NUM_SAMPLES, replace=False)
     # subset_paths = [labeled_video_paths[i] for i in indices]
@@ -74,8 +80,8 @@ def main():
         transform=preprocessing_without_normalization,
     )
     print(len(dset))
-    text_to_concept.train_linear_aligner(dset, batch_size=16, load_reps=False, save_dir='data/videomae_base/representations_k400')
-    text_to_concept.save_linear_aligner('pretrained_aligners/videomae_base_aligner_20k_k400.pth')
+    text_to_concept.train_linear_aligner(dset, batch_size=16, load_reps=False, save_dir='data/videomae_base/representations_k400_v2_')
+    text_to_concept.save_linear_aligner('pretrained_aligners/videomae_base_aligner_k400_v2.pth')
 
 
 if __name__ == '__main__':

@@ -159,8 +159,27 @@ class TextToConcept:
             self.load_reps(path_to_model, path_to_clip_model)
         else:
             print(f'Obtaining representations ...')
-            self.reps_model, self.reps_names = self.obtain_ftrs(self.model, D, batch_size, str(save_dir) + 'vision_model_reps.pth', save_every)
-            self.reps_clip, self.reps_names = self.obtain_ftrs(self.clip_model, D, batch_size, str(save_dir) + 'clip_model_reps.pth', save_every)
+            self.reps_model, model_names = self.obtain_ftrs(self.model, D, batch_size, str(save_dir) + 'vision_model_reps.pth', save_every)
+            self.reps_clip, clip_names = self.obtain_ftrs(self.clip_model, D, batch_size, str(save_dir) + 'clip_model_reps.pth', save_every)
+
+            if self.reps_model.shape[0] != self.reps_clip.shape[0]:
+                raise ValueError(
+                    f"Mismatch in number of reps: model={self.reps_model.shape[0]}, clip={self.reps_clip.shape[0]}"
+                )
+
+            if len(model_names) != len(clip_names):
+                raise ValueError(
+                    f"Mismatch in number of names: model={len(model_names)}, clip={len(clip_names)}"
+                )
+
+            if not np.array_equal(model_names, clip_names):
+                mismatch_idx = np.where(model_names != clip_names)[0][0]
+                raise ValueError(
+                    "Model/CLIP sample order mismatch at index "
+                    f"{mismatch_idx}: model={model_names[mismatch_idx]!r}, clip={clip_names[mismatch_idx]!r}"
+                )
+
+            self.reps_names = model_names
 
         if save_reps:
             self.save_reps(path_to_model, path_to_clip_model)
@@ -241,13 +260,13 @@ class TextToConcept:
         all_reps, all_labels, all_names = [], [], []
         with torch.no_grad():
             for data in tqdm(loader):
-                imgs, labels, vid_name = data[0], data[1], data[2]
+                x, labels, vid_name = data[0], data[1], data[2]
                 if do_normalization:
-                    imgs = self.model.get_normalizer(imgs).to(self.device)
+                    x = self.model.get_normalizer(x).to(self.device)
                 else:
-                    imgs = imgs.to(self.device)
+                    x = x.to(self.device)
                 
-                reps = self.model.forward_features(imgs).flatten(1)
+                reps = self.model.forward_features(x).flatten(1)
                 
                 all_reps.append(reps.detach().cpu().numpy())
                 all_labels.append(np.array([int(l) for l in labels]))  # TODO proper fix
@@ -354,15 +373,15 @@ class TextToConcept:
         """
         Run model forward_features on the given dataloader and obtain feature representations.
         """
-        all_reps, all_names = [], []
+        all_reps, all_names, all_labels = [], [], []
 
         with torch.inference_mode():
-            for i, (imgs, _, vid_name) in enumerate(tqdm(loader)):
+            for i, (x, label, vid_name) in enumerate(tqdm(loader)):
                 if model.has_normalizer:
-                    imgs = model.get_normalizer(imgs)
+                    x = model.get_normalizer(x)
 
-                imgs = imgs.to(self.device)
-                reps = model.forward_features(imgs).flatten(1).cpu()
+                x = x.to(self.device)
+                reps = model.forward_features(x).flatten(1).cpu()
 
                 all_reps.append(reps)
                 all_names.append(
@@ -370,18 +389,21 @@ class TextToConcept:
                         [vid.removesuffix('.mp4') for vid in vid_name]
                     )
                 )
+                all_labels.append(torch.as_tensor(label, dtype=torch.long).reshape(-1).cpu().numpy())
 
                 if save_path is not None and (i + 1) % save_every == 0:
                     torch.save(torch.cat(all_reps, dim=0), str(save_path[:-4]) + '.pth')
 
-                del imgs, reps, vid_name
+                del x, reps, vid_name
 
         all_reps = torch.cat(all_reps, dim=0).numpy()
         all_names = np.concatenate(all_names, axis=0)
+        all_labels = np.concatenate(all_labels, axis=0)
 
         if save_path is not None:
             np.save(str(save_path[:-4]) + '.npy', all_reps)
             np.save(str(save_path[:-4]) + '_names.npy', all_names)
+            np.save(str(save_path[:-4]) + '_labels.npy', all_labels)
             print(f'Saved representations to {save_path}')
 
         return all_reps, all_names
