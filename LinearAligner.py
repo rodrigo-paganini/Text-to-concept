@@ -45,11 +45,12 @@ class LinearAligner():
     def get_aligned_representation(self, ftrs):
         return ftrs @ self.W.T + self.b
     
-    def load_W(self, path_to_load: str):
+    def load_W(self, path_to_load: str, device=None):
         """Loads both W and b."""
         aligner_dict = torch.load(path_to_load)
         self.W, self.b = [aligner_dict[x].float() for x in ['W', 'b']]
-        device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
+        if device is None:
+            device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
         self.W = self.W.to(device).float()
         self.b = self.b.to(device).float()
         

@@ -139,9 +139,9 @@ class TextToConcept:
         self.reps_clip = np.load(path_to_clip_model)
     
     
-    def load_linear_aligner(self, path_to_load):
+    def load_linear_aligner(self, path_to_load, device=None):
         self.linear_aligner = LinearAligner()
-        self.linear_aligner.load_W(path_to_load)
+        self.linear_aligner.load_W(path_to_load, device=device)
     
     
     def save_linear_aligner(self, path_to_save):
