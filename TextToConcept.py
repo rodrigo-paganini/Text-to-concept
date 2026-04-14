@@ -367,7 +367,7 @@ class TextToConcept:
                 all_reps.append(reps)
                 all_names.append(
                     np.array(
-                        [vid.strip('.mp4') for vid in vid_name]
+                        [vid.split('.mp4')[0] for vid in vid_name]
                     )
                 )
 
