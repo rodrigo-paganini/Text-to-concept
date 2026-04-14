@@ -1,0 +1,27 @@
+concept,prompt
+Hand_Active,a video of a person using their hands actively
+Bimanual_Coordination,a video of a person using both hands together
+Finger_Precision,a video of a person using precise finger movements
+Arm_Extension,a video of a person extending their arms
+Leg_Movement,a video of a person moving their legs
+Full_Body_Engagement,a video of a person moving their whole body
+Repetitive_Motion,a video showing repetitive motion
+Forceful_Action,a video of a forceful action
+Vertical_Movement,a video showing vertical movement
+Balance_Critical,a video of an action requiring careful balance
+Standing_Position,a video of a person standing
+Seated_Position,a video of a person sitting
+Bent_Posture,a video of a person bending their body
+Extended_Posture,a video of a person with an extended posture
+Musical_Instrument,a video showing a musical instrument
+String_Instrument,a video showing a string instrument
+Keyboard_Instrument,a video showing a keyboard instrument
+Tool_Usage,a video of a person using a tool
+Sports_Equipment,a video showing sports equipment
+Personal_Care_Item,a video showing a personal care item
+Indoor_Setting,a video indoors
+Outdoor_Setting,a video outdoors
+Water_Environment,a video in water
+Bathroom_Setting,a video in a bathroom
+Object_Manipulation,a video of a person manipulating an object
+Locomotion,a video of a person moving from one place to another
