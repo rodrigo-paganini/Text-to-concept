@@ -366,8 +366,8 @@ class TextToConcept:
 
                 all_reps.append(reps)
                 all_names.append(
-                    torch.tensor(
-                        [int(vid.strip('.mp4')) for vid in vid_name]
+                    np.array(
+                        [vid.strip('.mp4') for vid in vid_name]
                     )
                 )
 
@@ -377,7 +377,7 @@ class TextToConcept:
                 del imgs, reps, vid_name
 
         all_reps = torch.cat(all_reps, dim=0).numpy()
-        all_names = torch.cat(all_names, dim=0).numpy()
+        all_names = np.concatenate(all_names, axis=0)
 
         if save_path is not None:
             np.save(str(save_path[:-4]) + '.npy', all_reps)
