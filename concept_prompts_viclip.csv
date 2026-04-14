@@ -1,0 +1,90 @@
+concept,prompt
+Hand_Active,a video of a person actively using their hands
+Bimanual_Coordination,a video of a person using both hands together
+Finger_Precision,a video of a person using precise finger movements
+Arm_Extension,a video of a person extending an arm
+Leg_Movement,a video of a person moving their legs
+Foot_Contact,a video of a person making contact with something using a foot
+Mouth_Open,a video of a person with their mouth open
+Head_Tilt,a video of a person tilting their head
+Torso_Rotation,a video of a person rotating their torso
+Kneeling_Posture,a video of a person kneeling
+Seated_Position,a video of a person sitting
+Standing_Position,a video of a person standing
+Supine_Position,a video of a person lying on their back
+Full_Body_Engagement,a video of a person moving their whole body
+Ball,a video showing a ball
+Racket_or_Bat,a video showing a racket or bat
+Skis_or_Board,"a video showing skis, a snowboard, or a board used for sport"
+Bicycle_or_Vehicle,a video showing a bicycle or vehicle
+Tool_Handheld,a video showing a handheld tool
+Power_Tool,a video showing a power tool
+Musical_Instrument,a video showing a musical instrument
+Furniture,a video showing furniture
+Electronic_Device,a video showing an electronic device
+Kitchen_Utensil,a video showing a kitchen utensil
+Food_Solid,a video showing solid food
+Liquid_Drink,a video showing a drink or other liquid being consumed
+Container_Bottle,a video showing a bottle or container
+Paper_or_Book,a video showing paper or a book
+Clothing_Fabric,a video showing clothing or fabric
+Rope_or_String,a video showing rope or string
+Animal,a video showing an animal
+Plant_or_Tree,a video showing a plant or tree
+Indoor,a video indoors
+Outdoor,a video outdoors
+Water_Surface,a video showing the surface of water
+Underwater,an underwater video
+Gym_or_Court,a video in a gym or on a sports court
+Kitchen_Setting,a video in a kitchen
+Natural_Landscape,a video in a natural landscape
+Urban_Setting,a video in an urban setting
+Snow_or_Ice,a video showing snow or ice
+Sand_or_Dirt,a video showing sand or dirt
+High_Altitude,a video taken high above the ground
+Rhythmic,a video of rhythmic movement
+Repetitive,a video of a repeated action
+Explosive,a video of a sudden explosive movement
+Slow_Deliberate,a video of slow deliberate movement
+Fast_Paced,a video of fast-paced action
+Vertical_Ascent,a video of upward movement
+Vertical_Descent,a video of downward movement
+Horizontal_Lateral,a video of sideways movement
+Rotational_Spin,a video showing spinning motion
+Circular_Motion,a video showing circular motion
+Impactful,a video of forceful impact or contact
+Constant_Velocity,a video of steady continuous motion at a constant speed
+Cutting_or_Slicing,a video of a person cutting or slicing something
+Pouring_Liquid,a video of a person pouring liquid
+Throwing_Motion,a video of a person throwing something
+Catching_Motion,a video of a person catching something
+Hitting_or_Striking,a video of a person hitting or striking something
+Pushing_Motion,a video of a person pushing something
+Pulling_Motion,a video of a person pulling something
+Lifting_Weight,a video of a person lifting a heavy object
+Cleaning_Scrubbing,a video of a person cleaning or scrubbing something
+Writing_or_Drawing,a video of a person writing or drawing
+Typing_or_Pressing,a video of a person typing or pressing something
+Folding_or_Creasing,a video of a person folding or creasing something
+Tying_or_Knotting,a video of a person tying or knotting something
+Rubbing_or_Applying,a video of a person rubbing or applying something
+Grooming_Action,a video of a person grooming themselves or someone else
+Consumption_Eating,a video of a person eating
+Consumption_Drinking,a video of a person drinking
+Social_Contact,a video of people making physical social contact
+Communication_Gesturing,a video of a person communicating with gestures
+Friction_High,a video of an action involving strong friction
+Gravity_Defying,a video of a person or object appearing to defy gravity
+Balance_Critical,a video of an action requiring careful balance
+Aerodynamic,a video of motion shaped by air resistance or aerodynamic movement
+Elastic_Tension,a video showing stretching or elastic tension
+Fluid_Resistance,a video of movement through water or another fluid
+Thermal_Heat,"a video showing heat, fire, or something being heated"
+Competitive_Sport,a video of people competing in a sport
+Artistic_Performance,a video of an artistic performance
+Domestic_Chore,a video of a person doing a household chore
+Professional_Work,a video of a person doing work-related activity
+Self_Care,a video of a person doing self-care
+Recreational_Leisure,a video of a person doing a leisure activity
+Solitary_Action,a video of one person doing an activity alone
+Group_Activity,a video of several people doing an activity together
