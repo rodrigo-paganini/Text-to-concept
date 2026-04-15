@@ -1,3 +1,8 @@
+"""
+Train a linear aligner between video representations and text representations, using the VideoMAE base model as the video encoder.
+
+Authors: E. Cabalé, H. Naranjo, R. Paganini
+"""
 import torch
 import torchvision
 import json

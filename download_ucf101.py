@@ -1,3 +1,8 @@
+"""
+Script to download the UCF-101 dataset from Kaggle, check for overlaps, and copy the files to a local directory.
+
+Authors: E. Cabalé, H. Naranjo, R. Paganini
+"""
 from pathlib import Path
 from collections import Counter
 import shutil

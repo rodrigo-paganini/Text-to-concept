@@ -1,3 +1,8 @@
+"""
+Script to download the Kinetics-400 dataset (5% subset for training, and the full validation set for testing) from Kaggle, check for overlaps, and copy the files to a local directory.
+
+Authors: E. Cabalé, H. Naranjo, R. Paganini
+"""
 from pathlib import Path
 from collections import Counter
 import shutil

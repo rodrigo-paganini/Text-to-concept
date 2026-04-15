@@ -1,3 +1,8 @@
+"""
+Utility functions for video datasets and models.
+
+Authors: E. Cabalé, H. Naranjo, R. Paganini
+"""
 import os
 import torch
 import random
@@ -139,6 +144,14 @@ def make_dataset(
 
 
 class VideoMAETTCTWrapper(torch.nn.Module):
+    """
+    VideoMAE model wrapper for TextToConcept.
+
+    Wraps the model to add the following methods, required by TextToConcept:
+    + ``forward_features(x)`` that takes a tensor as the input and outputs the representation (features) of input $x$ when it is passed through the model.
+    + ``get_normalizer`` should be the normalizer that the models uses to preprocess the input. e.g., Resnet18, uses standard ImageNet normalizer.
+    + Attribute ``has_normalizer`` should be `True` when normalizer is need for the model.
+    """
     def __init__(self, model, normalizer=None, mtype="videomae"):
         super().__init__()
         self.model = model
