@@ -1,3 +1,8 @@
+"""
+Classes to define and train a Concept Bottleneck Model for video classification, using the TextToConcept framework to obtain concept scores from video features.
+
+Authors: E. Cabalé, H. Naranjo, R. Paganini
+"""
 import numpy as np
 import torch
 from tqdm import tqdm
