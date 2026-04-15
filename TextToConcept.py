@@ -95,6 +95,13 @@ class ZeroShotClassifier:
             aligned_reps = self.aligner.get_aligned_representation(reps)
             aligned_reps /= aligned_reps.norm(dim=-1, keepdim=True)
             return aligned_reps @ self.zeroshot_weights.T
+
+    def send_to(self, device):
+        self.device = device
+        self.model = self.model.to(device)
+        self.aligner.W = self.aligner.W.to(device)
+        self.aligner.b = self.aligner.b.to(device)
+        self.zeroshot_weights = self.zeroshot_weights.to(device)
         
 class TextToConcept:
     # model.forward_features(), model.get_normalizer() should be implemented.
