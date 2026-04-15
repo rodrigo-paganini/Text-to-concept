@@ -253,8 +253,8 @@ class TextToConcept:
     def get_dataset_reps(self, dset, dset_name, do_normalization):
         """Gets a dataset (vision) model representations from saved run or reruns them."""
         if dset_name in self.saved_dsets:
-            path_to_reps, path_to_labels = self.saved_dsets[dset_name]
-            return np.load(path_to_reps), np.load(path_to_labels)
+            path_to_reps, path_to_labels, path_to_names = self.saved_dsets[dset_name]
+            return np.load(path_to_reps), np.load(path_to_labels), np.load(path_to_names)
         
         loader = torch.utils.data.DataLoader(dset, batch_size=8, shuffle=False, num_workers=8, pin_memory=True) 
         all_reps, all_labels, all_names = [], [], []

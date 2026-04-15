@@ -17,10 +17,16 @@ class ConceptBottleneckModel(torch.nn.Module):
         self.mtype = mtype
         self.has_normalizer = False
 
-    def embed_concepts(self, clip_model):
-        tokens = clip_model.tokenize(self.concept_list)
+    def embed_concepts(self, clip_model, templates=None):
+        if templates is not None:
+            concept_list = [[t.format(c) for t in templates] for c in self.concept_list]
+        else:
+            concept_list = [[c] for c in self.concept_list]
+
+        tokens = [clip_model.tokenize(c) for c in concept_list]
         device = next(clip_model.parameters()).device
-        self.concept_embeddings = clip_model.encode_text(tokens.to(device)).detach().float()
+        concept_embeddings = [clip_model.encode_text(token.to(device)).detach().float() for token in tokens]
+        self.concept_embeddings = torch.stack(concept_embeddings).mean(dim=1)
         return self.concept_embeddings
 
     def get_concept_concept_scores(self, vision_features):
