@@ -31,7 +31,7 @@ class ConceptBottleneckModel(torch.nn.Module):
         tokens = [clip_model.tokenize(c) for c in concept_list]
         device = next(clip_model.parameters()).device
         concept_embeddings = [clip_model.encode_text(token.to(device)).detach().float() for token in tokens]
-        self.concept_embeddings = torch.stack(concept_embeddings).mean(dim=1)
+        self.concept_embeddings = torch.stack(concept_embeddings).mean(dim=1).cpu()
         return self.concept_embeddings
 
     def get_concept_concept_scores(self, vision_features):
