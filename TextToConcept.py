@@ -1,4 +1,5 @@
 from typing import Any, List
+from unittest import loader
 import torch
 from torchvision import datasets, transforms, models
 import torchvision
@@ -57,6 +58,10 @@ class ClipZeroShotForVideos(torch.nn.Module):
         self.has_normalizer = False
 
     def forward_features(self, vid):
+        if vid.shape[1] != 8:
+            idx = torch.linspace(0, vid.shape[1] - 1, 8, device=vid.device).long()
+            vid = vid.index_select(1, idx)
+
         video_feats = self.clip_model.get_vid_features(vid)
         return video_feats
 
@@ -90,6 +95,13 @@ class ZeroShotClassifier:
             aligned_reps = self.aligner.get_aligned_representation(reps)
             aligned_reps /= aligned_reps.norm(dim=-1, keepdim=True)
             return aligned_reps @ self.zeroshot_weights.T
+
+    def send_to(self, device):
+        self.device = device
+        self.model = self.model.to(device)
+        self.aligner.W = self.aligner.W.to(device)
+        self.aligner.b = self.aligner.b.to(device)
+        self.zeroshot_weights = self.zeroshot_weights.to(device)
         
 class TextToConcept:
     # model.forward_features(), model.get_normalizer() should be implemented.
@@ -134,23 +146,45 @@ class TextToConcept:
         self.reps_clip = np.load(path_to_clip_model)
     
     
-    def load_linear_aligner(self, path_to_load):
+    def load_linear_aligner(self, path_to_load, device=None):
         self.linear_aligner = LinearAligner()
-        self.linear_aligner.load_W(path_to_load)
+        self.linear_aligner.load_W(path_to_load, device=device)
     
     
     def save_linear_aligner(self, path_to_save):
         self.linear_aligner.save_W(path_to_save)
       
         
-    def train_linear_aligner(self, D, save_reps=False, load_reps=False, path_to_model=None, path_to_clip_model=None, epochs=5):
-        """Train the linear aligner."""
+    def train_linear_aligner(self, D, batch_size=16, save_reps=False, load_reps=False, path_to_model=None, path_to_clip_model=None, epochs=5,
+        save_dir=None, save_every=20):
+        """
+        Train the linear aligner.
+        """
         if load_reps:
             self.load_reps(path_to_model, path_to_clip_model)
         else:
             print(f'Obtaining representations ...')
-            self.reps_model = self.obtain_ftrs(self.model, D)
-            self.reps_clip = self.obtain_ftrs(self.clip_model, D)
+            self.reps_model, model_names = self.obtain_ftrs(self.model, D, batch_size, str(save_dir) + 'vision_model_reps.pth', save_every)
+            self.reps_clip, clip_names = self.obtain_ftrs(self.clip_model, D, batch_size, str(save_dir) + 'clip_model_reps.pth', save_every)
+
+            if self.reps_model.shape[0] != self.reps_clip.shape[0]:
+                raise ValueError(
+                    f"Mismatch in number of reps: model={self.reps_model.shape[0]}, clip={self.reps_clip.shape[0]}"
+                )
+
+            if len(model_names) != len(clip_names):
+                raise ValueError(
+                    f"Mismatch in number of names: model={len(model_names)}, clip={len(clip_names)}"
+                )
+
+            if not np.array_equal(model_names, clip_names):
+                mismatch_idx = np.where(model_names != clip_names)[0][0]
+                raise ValueError(
+                    "Model/CLIP sample order mismatch at index "
+                    f"{mismatch_idx}: model={model_names[mismatch_idx]!r}, clip={clip_names[mismatch_idx]!r}"
+                )
+
+            self.reps_names = model_names
 
         if save_reps:
             self.save_reps(path_to_model, path_to_clip_model)
@@ -201,11 +235,9 @@ class TextToConcept:
     def get_similarity(self, dset, dset_name, do_normalization, vecs: torch.Tensor):
         """
         Gets the similarity each dataset element has with a mean text representations (vecs).
-        Outputs a numpy array of shape: [N_batches, batch_size, 1]  TODO verify
-
-        TODO list append efficiency could be improved.
+        Outputs a numpy array of shape: [N_batches, batch_size, 1]
         """
-        reps, labels = self.get_dataset_reps(dset, dset_name, do_normalization)
+        reps, _, _ = self.get_dataset_reps(dset, dset_name, do_normalization)
         N = reps.shape[0]
         batch_size = 100
         
@@ -224,42 +256,47 @@ class TextToConcept:
     def get_dataset_reps(self, dset, dset_name, do_normalization):
         """Gets a dataset (vision) model representations from saved run or reruns them."""
         if dset_name in self.saved_dsets:
-            path_to_reps, path_to_labels = self.saved_dsets[dset_name]
-            return np.load(path_to_reps), np.load(path_to_labels)
+            path_to_reps, path_to_labels, path_to_names = self.saved_dsets[dset_name]
+            return np.load(path_to_reps), np.load(path_to_labels), np.load(path_to_names)
         
         loader = torch.utils.data.DataLoader(dset, batch_size=8, shuffle=False, num_workers=8, pin_memory=True) 
-        all_reps, all_labels = [], []
+        all_reps, all_labels, all_names = [], [], []
         with torch.no_grad():
             for data in tqdm(loader):
-                imgs, labels = data[0], data[1]
+                x, labels, vid_name = data[0], data[1], data[2]
                 if do_normalization:
-                    imgs = self.model.get_normalizer(imgs).to(self.device)
+                    x = self.model.get_normalizer(x).to(self.device)
                 else:
-                    imgs = imgs.to(self.device)
+                    x = x.to(self.device)
                 
-                reps = self.model.forward_features(imgs).flatten(1)
+                reps = self.model.forward_features(x).flatten(1)
                 
                 all_reps.append(reps.detach().cpu().numpy())
-                all_labels.append(labels.detach().cpu().numpy())
-        
+                all_labels.append(np.array([int(l) for l in labels]))
+                all_names.append(vid_name)
         
         all_reps = np.vstack(all_reps)
         all_labels = np.hstack(all_labels)
+        all_names = np.hstack(all_names)
         
-        self.saved_dsets[dset_name] = (self._get_path_to_reps(dset_name), self._get_path_to_labels(dset_name), )
+        self.saved_dsets[dset_name] = (self._get_path_to_reps(dset_name), self._get_path_to_labels(dset_name), self._get_path_to_names(dset_name))
         os.makedirs(f'datasets/{self.model_name}/', exist_ok=True)
         
         np.save(self._get_path_to_reps(dset_name), all_reps)
         np.save(self._get_path_to_labels(dset_name), all_labels)
-        
-        return all_reps, all_labels
-        
-        
+        np.save(self._get_path_to_names(dset_name), all_names)
+
+        return all_reps, all_labels, all_names
+
+
     def _get_path_to_labels(self, dset_name):
         return f'datasets/{self.model_name}/{dset_name}_labels.npy'
     
     def _get_path_to_reps(self, dset_name):
         return f'datasets/{self.model_name}/{dset_name}_reps.npy'
+
+    def _get_path_to_names(self, dset_name):
+        return f'datasets/{self.model_name}/{dset_name}_names.npy'
 
     
     def encode_text(self, list_of_prompts):
@@ -329,31 +366,47 @@ class TextToConcept:
         return retrieved, sims
         
         
-    def obtain_ftrs(self, model, dset):
+    def obtain_ftrs(self, model, dset, batch_size=16, save_path=None, save_every=20):
         """Instance a dataloader and obtain feature representations for the given model."""
-        loader = torch.utils.data.DataLoader(dset, batch_size=16, shuffle=False, num_workers=8, pin_memory=True) 
-        return self.obtain_reps_given_loader(model, loader)
+        loader = torch.utils.data.DataLoader(dset, batch_size, shuffle=False, num_workers=8, pin_memory=True) 
+        return self.obtain_reps_given_loader(model, loader, save_path, save_every)
     
     
-    def obtain_reps_given_loader(self, model, loader):
+    def obtain_reps_given_loader(self, model, loader, save_path=None, save_every=20):
         """
         Run model forward_features on the given dataloader and obtain feature representations.
-        
-        TODO: we can try to torch this us, use .pth instead of .npy
         """
-        all_reps = []
-        for imgs, _ in tqdm(loader):
-            if model.has_normalizer:
-                imgs = model.get_normalizer(imgs)
-            
-            imgs = imgs.to(self.device)
-                
-            reps = model.forward_features(imgs).flatten(1)
-            reps = [x.detach().cpu().numpy() for x in reps]
-            
-            all_reps.extend(reps)
-            
-        all_reps = np.stack(all_reps)
-        return all_reps
+        all_reps, all_names, all_labels = [], [], []
 
+        with torch.inference_mode():
+            for i, (x, label, vid_name) in enumerate(tqdm(loader)):
+                if model.has_normalizer:
+                    x = model.get_normalizer(x)
 
+                x = x.to(self.device)
+                reps = model.forward_features(x).flatten(1).cpu()
+
+                all_reps.append(reps)
+                all_names.append(
+                    np.array(
+                        [vid.removesuffix('.mp4') for vid in vid_name]
+                    )
+                )
+                all_labels.append(torch.as_tensor(label, dtype=torch.long).reshape(-1).cpu().numpy())
+
+                if save_path is not None and (i + 1) % save_every == 0:
+                    torch.save(torch.cat(all_reps, dim=0), str(save_path[:-4]) + '.pth')
+
+                del x, reps, vid_name
+
+        all_reps = torch.cat(all_reps, dim=0).numpy()
+        all_names = np.concatenate(all_names, axis=0)
+        all_labels = np.concatenate(all_labels, axis=0)
+
+        if save_path is not None:
+            np.save(str(save_path[:-4]) + '.npy', all_reps)
+            np.save(str(save_path[:-4]) + '_names.npy', all_names)
+            np.save(str(save_path[:-4]) + '_labels.npy', all_labels)
+            print(f'Saved representations to {save_path}')
+
+        return all_reps, all_names

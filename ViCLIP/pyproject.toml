@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "viclip"
+version = "0.1.0"
+description = "ViCLIP local package"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "torch",
+  "einops",
+  "timm",
+  "ftfy",
+  "regex",
+]
+
+[tool.setuptools]
+packages = ["ViCLIP"]
+
+[tool.setuptools.package-dir]
+ViCLIP = "."
+
+[tool.setuptools.package-data]
+ViCLIP = [
+  "bpe_simple_vocab_16e6.txt.gz",
+  "*.pth",
+]
