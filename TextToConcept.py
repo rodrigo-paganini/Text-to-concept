@@ -159,8 +159,6 @@ class TextToConcept:
         save_dir=None, save_every=20):
         """
         Train the linear aligner.
-
-        TODO make it so that we use only 1 decoding at a time
         """
         if load_reps:
             self.load_reps(path_to_model, path_to_clip_model)
@@ -237,9 +235,7 @@ class TextToConcept:
     def get_similarity(self, dset, dset_name, do_normalization, vecs: torch.Tensor):
         """
         Gets the similarity each dataset element has with a mean text representations (vecs).
-        Outputs a numpy array of shape: [N_batches, batch_size, 1]  TODO verify
-
-        TODO list append efficiency could be improved.
+        Outputs a numpy array of shape: [N_batches, batch_size, 1]
         """
         reps, _, _ = self.get_dataset_reps(dset, dset_name, do_normalization)
         N = reps.shape[0]
@@ -276,7 +272,7 @@ class TextToConcept:
                 reps = self.model.forward_features(x).flatten(1)
                 
                 all_reps.append(reps.detach().cpu().numpy())
-                all_labels.append(np.array([int(l) for l in labels]))  # TODO proper fix
+                all_labels.append(np.array([int(l) for l in labels]))
                 all_names.append(vid_name)
         
         all_reps = np.vstack(all_reps)

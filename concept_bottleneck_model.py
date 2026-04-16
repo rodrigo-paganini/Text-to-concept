@@ -44,7 +44,7 @@ class ConceptBottleneckModel(torch.nn.Module):
         scores = vision_features @ concept_embeddings.T
         return scores
 
-    def predict(self, vision_features):  # TODO make sure this doesn't backprop to the model
+    def predict(self, vision_features):
         concept_scores = self.get_concept_concept_scores(vision_features)
         output_scores = self.bottleneck(concept_scores)
         return output_scores

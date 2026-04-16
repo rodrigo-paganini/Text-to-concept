@@ -18,7 +18,7 @@ from torchvision.transforms import Compose, Resize, CenterCrop
 from pytorchvideo.data import UniformClipSampler
 
 
-IMAGENET_MEAN = [0.485, 0.456, 0.406]  # TODO review values
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
 SUBSET_NUM_SAMPLES = 20000
@@ -36,7 +36,6 @@ def main():
     print("Using device:", device)
 
     device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    # feature_extractor = VideoMAEVideoProcessor.from_pretrained("MCG-NJU/videomae-small-finetuned-ssv2")  # TODO unnecessary??
     videomae_model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base")
     videomae_model = videomae_model.to(device)
 
