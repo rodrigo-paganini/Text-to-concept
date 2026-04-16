@@ -8,6 +8,9 @@ import torch
 import random
 from pathlib import Path
 import json
+import numpy as np
+import matplotlib.pyplot as plt
+import torchvision
 
 from torchvision.datasets.folder import has_file_allowed_extension
 from torchvision import transforms, datasets
@@ -141,6 +144,75 @@ def make_dataset(
         raise FileNotFoundError(msg)
 
     return instances
+
+
+def resolve_video_path(video_name, videos_root=None, suffix=".mp4"):
+    video_name = Path(str(video_name))
+
+    if video_name.exists():
+        return str(video_name)
+
+    if video_name.suffix:
+        rel_path = video_name
+    else:
+        rel_path = video_name.with_suffix(suffix)
+
+    if videos_root is None:
+        return str(rel_path)
+
+    return str(Path(videos_root) / rel_path)
+
+
+def read_video_strip(video_path, n_frames=3, empty_hw=(224, 224)):
+    frames, _, _ = torchvision.io.read_video(video_path, pts_unit="sec")
+
+    if len(frames) == 0:
+        h, w = empty_hw
+        return np.zeros((h, w * n_frames, 3), dtype=np.uint8)
+
+    idx = np.linspace(0, len(frames) - 1, n_frames, dtype=int)
+    return np.concatenate([frames[i].numpy() for i in idx], axis=1)
+
+
+def visualize_top_videos(
+    sorted_inds,
+    sims,
+    video_names,
+    videos_root=None,
+    num_videos=8,
+    n_frames=3,
+    suffix=".mp4",
+    figsize=None,
+):
+    chosen = np.asarray(sorted_inds[:num_videos])
+
+    if figsize is None:
+        figsize = (12, 2.8 * len(chosen))
+
+    fig, axes = plt.subplots(len(chosen), 1, figsize=figsize)
+    if len(chosen) == 1:
+        axes = [axes]
+
+    sims_arr = None if sims is None else np.asarray(sims)
+
+    for rank, (ax, idx) in enumerate(zip(axes, chosen), start=1):
+        idx = int(idx)
+        video_path = resolve_video_path(video_names[idx], videos_root=videos_root, suffix=suffix)
+        strip = read_video_strip(video_path, n_frames=n_frames)
+
+        ax.imshow(strip)
+        ax.axis("off")
+
+        title = f"{rank}. {Path(video_path).stem}"
+        if sims_arr is not None:
+            score = sims_arr[idx]
+            if np.ndim(score) == 0:
+                title += f" | sim={float(score):.4f}"
+
+        ax.set_title(title, fontsize=11)
+
+    plt.tight_layout()
+    plt.show()
 
 
 class VideoMAETTCTWrapper(torch.nn.Module):
