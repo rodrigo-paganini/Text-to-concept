@@ -8,7 +8,7 @@ This repository extends the [original work](https://github.com/k1rezaei/Text-to-
 
 - [video_utils.py](video_utils.py): was created to add utilities for video processing, video dataset creation and video loading.
 
-- Notebooks [xai_example_zeroshot_video.ipynb](xai_example_zeroshot_video.ipynb), [xai_example_search_concept_logic_video.ipynb](xai_example_search_concept_logic_video.ipynb) and [xai_concept_botteleneck_video.ipynb](xai_concept_botteleneck_video.ipynb) were created to perform and document our experiments.
+- Notebooks [xai_example_zeroshot_video.ipynb](xai_example_zeroshot_video.ipynb), [xai_example_search_concept_logic_video.ipynb](xai_example_search_concept_logic_video.ipynb) and [xai_concept_botteleneck_video.ipynb](xai_concept_botteleneck_video.ipynb) were created to perform and document our experiments. [concept_bottleneck_model.py](concept_bottleneck_model.py) was created to provide useful classes for CBM training.
 
 Work by E. Cabalé, H. Naranjo and R. Paganini for the XAI course of Gianni Franchi and Mathieu Fontaine, for the MVA master's at ENS Paris-Saclay.
 

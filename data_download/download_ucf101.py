@@ -10,7 +10,7 @@ import sys
 import kagglehub
 
 
-out_dir = Path("/Users/rodrigopaganini/master/xai/project/Text-to-concept/dataset/ucf101").expanduser()
+out_dir = Path("dataset/ucf101").expanduser()
 
 # Download latest version
 path = kagglehub.dataset_download("matthewjansen/ucf101-action-recognition")

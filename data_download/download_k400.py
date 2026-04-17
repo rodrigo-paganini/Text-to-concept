@@ -33,19 +33,17 @@ def scan_txt(txt_path):
 
 
 # # Download train set
-# train_path = kagglehub.dataset_download("rohanmallick/kinetics-train-5per")
-# print("Path to dataset files:", train_path)
-train_path = Path("/home/onyxia/.cache/kagglehub/datasets/rohanmallick/kinetics-train-5per/versions/1")
+train_path = kagglehub.dataset_download("rohanmallick/kinetics-train-5per")
+print("Path to dataset files:", train_path)
 
 # # Download test set
-# test_path = kagglehub.dataset_download("ipythonx/k4testset")
-# print("Path to dataset files:", test_path)
-test_path = Path("/home/onyxia/.cache/kagglehub/datasets/ipythonx/k4testset/versions/1")
+test_path = kagglehub.dataset_download("ipythonx/k4testset")
+print("Path to dataset files:", test_path)
 
 # Check for overlaps
 EXTS = {".mp4", }  # ".avi", ".mkv", ".webm", ".mov"}
 
-out_dir = Path("~/work/dataset/k400").expanduser()
+out_dir = Path("dataset/k400").expanduser()
 train_dir = Path(train_path) / "kinetics400_5per/kinetics400_5per/train"
 test_txt = Path(test_path) / "kinetics400_val_list_videos.txt"
 n_train, train_rels, train_stems, train_labels = scan_dir(train_dir)
