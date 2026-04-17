@@ -1,3 +1,11 @@
+"""
+TextToConcept.py
+
+Classes to obtain concept scores from video features, using the TextToConcept framework.
+
+In this file we (E. Cabalé, H. Naranjo, R. Paganini) extend the original work of TextToConcept
+(https://github.com/k1rezaei/Text-to-concept) by M. Moayeri, K. Rezaei et. al. to the video domain.
+"""
 from typing import Any, List
 from unittest import loader
 import torch
