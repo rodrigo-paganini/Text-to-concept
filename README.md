@@ -10,6 +10,8 @@ This repository extends the [original work](https://github.com/k1rezaei/Text-to-
 
 - Notebooks [xai_example_zeroshot_video.ipynb](xai_example_zeroshot_video.ipynb), [xai_example_search_concept_logic_video.ipynb](xai_example_search_concept_logic_video.ipynb) and [xai_concept_botteleneck_video.ipynb](xai_concept_botteleneck_video.ipynb) were created to perform and document our experiments. [concept_bottleneck_model.py](concept_bottleneck_model.py) was created to provide useful classes for CBM training.
 
+As additional dependencies, [ViCLIP](https://huggingface.co/OpenGVLab/ViCLIP) was included as a dependency, only it has some modifications to be compatible with the text encoding performed in TTC. User must also clone [pytorchvideo](https://github.com/facebookresearch/pytorchvideo.git).
+
 Work by E. Cabalé, H. Naranjo and R. Paganini for the XAI course of Gianni Franchi and Mathieu Fontaine, for the MVA master's at ENS Paris-Saclay.
 
 
